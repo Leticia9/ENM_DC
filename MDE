@@ -1,0 +1,60 @@
+
+##MODELOS DE NICHO DE ESPECIES DEL DESIERTO CHIHUAHUENSE
+# script escrito sin acentos
+
+
+###Desagregado de registros ######
+library(ecospat)
+library(dplyr) 
+
+setwd("F:/directorio/")
+sp <- read.csv("sp1.csv")
+sp2 <- sp[,2:3] #nos quedamos con las filas de latitud y longitud
+colnames(sp2) =  c("y", "x") #los encabezados de las columnas deben llamarse x y y
+sp2 <- sp2%>%select(x,y)
+head(sp2)
+
+desag <- ecospat.occ.desaggregation(xy=sp2, min.dist=0.011, by=NULL) #distancia minima de 1 km
+head(desag)
+
+#division de los registros de manera aleatoria
+todos <- unique(desag)
+todos$sp <- paste(todos[,1], todos[,2], sep = "_")
+train <- todos[sample(nrow(todos), round((length(todos[,1])/4 *3))), ]
+test <- todos[!todos[,3] %in% train[,3], ]
+
+todos$sp <- "Nombre_especie"
+train$sp <- "Nombre_especie"
+test$sp <- "Nombre_especie"
+
+todos2 <- todos%>%select(sp,x,y)
+head(todos2)   #revisamos
+train2 <- train%>%select(sp,x,y)
+head(train2)   #revisamos
+test2 <- test%>%select(sp,x,y)
+head(test2)    #revisamos
+
+write.csv(todos2, "Nombre_especie_joint.csv", row.names = FALSE)
+write.csv(train2, "Nombre_especie_train.csv", row.names = FALSE)
+write.csv(test2, "Nombre_especie_test.csv", row.names = FALSE)
+
+###SELECION DE VARIABLES PARA MODELOS 
+library(raster)
+
+#EXTRAER VALORES DE LAS BIOS PARA CADA REGISTRO 
+sp <- read.csv("Nombre_especie_joint.csv") #deben tener solo dos columnas xy
+sp2 <- sp[,2:3] #nos quedamos con las filas de latitud y longitud (xy)
+
+#cargamos las 19 bios
+setwd("F:/WC_dc/")
+wc <- list.files("presente/", pattern = "*.asc", full.names = TRUE)
+wc2 <- stack(wc)
+extrac <- extract(wc2, sp2)
+head(extrac)
+extrac = na.omit(extrac)
+
+#GENERAR UNA TABLA CON LAS CORRELACIONES DE LAS VARIABLES
+cor <- cor(extrac[, 1:ncol(extrac)], use = "pairwise.complete.obs")
+write.csv(cor, "selec_var/cor_Nombre_especie.csv")
+
+#EN EXCEL, DE MANERA VISUAL Y CON CONOCIMIENTO PREVIO DE LA ESPECIE, SE SELECCIONAN LAS BIOS CON MENOR CORRELACIÓN Y DE RELEVANCIA BIOLÓGICA PARA LA ESPECIE.
